@@ -1,64 +1,104 @@
 export default class ColumnChart {
-  constructor(columnChartParam) {
-    this.columnChartParam = columnChartParam;
+  subElements = {};
+  chartHeight = 50;
+
+  constructor({
+    data = [],
+    label = "",
+    link = "",
+    value = 0,
+    formatHeading = data => data,
+  } = {}) {
+    this.data = data;
+    this.label = label;
+    this.link = link;
+    this.value = formatHeading(value);
+
     this.render();
   }
-  
-  render () {
-    const elemDiv = document.createElement("div");
-    elemDiv.classList.add("column-chart");
-    elemDiv.style = "--chart-height: 50";
 
-    //ссылка
-    const columnChartParamLink = (this.columnChartParam.link != undefined ? `<a href="/${this.columnChartParam.link}" class="column-chart__link">View all</a>` : ``);
-
-    //заголовок
-    const columnChartParamFormatHeading = (this.columnChartParam.formatHeading != undefined ? this.columnChartParam.formatHeading(this.columnChartParam.value) : this.columnChartParam.value);
-    
-    let columnChartParamData = this.columnChartParam.data;
-    let elemDivInfo = ``;
-    if (columnChartParamData.length === 0) {
-      //если массив пустой, то добавим заглушку
-      elemDiv.classList.add("column-chart_loading");
-      elemDivInfo = `
-        <div class="column-chart__title">
-          ${this.columnChartParam.label}
-          ${columnChartParamLink}
-        </div>
-        <div class="column-chart__container">
+  get template() {
+    return `
+      <div class="column-chart column-chart_loading" style="--chart-height: ${ this.chartHeight }">
+      <div class="column-chart__title">
+          Total ${this.label}
+          ${this.getLink()}
+      </div>
+      <div class="column-chart__container">
           <div data-element="header" class="column-chart__header">
-            ${columnChartParamFormatHeading}
+              ${this.value}
           </div>
           <div data-element="body" class="column-chart__chart">
-
+          ${this.getColumnBody()}
           </div>
-        </div>
-        `;
-    } 
-    else {
-      let elemDivInfoChart = ``;
-      for (let data of columnChartParamData)
-      {
-        elemDivInfoChart += `<div style="--value: ${data}"></div>`;
-      }
+      </div>
+      </div>
+  `;
+  }
 
-      elemDivInfo = ` 
-        <div class="column-chart__title">
-            ${this.columnChartParam.label}
-            ${columnChartParamLink}
-        </div>
-        <div class="column-chart__container">
-            <div data-element="header" class="column-chart__header">${columnChartParamFormatHeading}</div>
-            <div data-element="body" class="column-chart__chart">
-            ${elemDivInfoChart}
-            </div>
-        </div>
-        `;
+  render() {
+    const wrapper = document.createElement("div");
+
+    wrapper.innerHTML = this.template;
+
+    this.element = wrapper.firstElementChild;
+
+    if (this.data.length) {
+      this.element.classList.remove("column-chart_loading");
     }
 
+    this.subElements = this.getSubElements();
+  }
 
+  getSubElements() {
+    const result = {};
+    const elements = this.element.querySelectorAll("[data-element]");
 
-    elemDiv.innerHTML = elemDivInfo;
-    this.element = elemDiv;
+    for (const subElement of elements) {
+      const name = subElement.dataset.element;
+
+      result[name] = subElement;
+    }
+
+    return result;
+  }
+
+  getColumnBody() {
+    const maxValue = Math.max(...this.data);
+    const scale = this.chartHeight / maxValue;
+
+    return this.data
+      .map(item => {
+        const percent = ((item / maxValue) * 100).toFixed(0);
+
+        return `<div style="--value: ${Math.floor(
+          item * scale
+        )}" data-tooltip="${percent}%"></div>`;
+      })
+      .join("");
+  }
+
+  getLink() {
+    return this.link
+      ? `<a class="column-chart__link" href="${this.link}">View all</a>`
+      : "";
+  }
+
+  update(data) {
+    this.data = data;
+
+    this.subElements.body.innerHTML = this.getColumnBody();
+  }
+
+  remove() {
+    if (this.element) {
+      this.element.remove();
+    }
+  }
+
+  destroy() {
+    this.remove();
+    this.element = null;
+    this.subElements = {};
   }
 }
